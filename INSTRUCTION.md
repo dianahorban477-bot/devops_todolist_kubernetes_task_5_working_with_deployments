@@ -3,7 +3,6 @@
 ## 1. How to Deploy the Application
 To deploy the application and its autoscaling configuration to the `mateapp` namespace, run the following commands from the project root directory:
 ```bash
-```bash
 kubectl apply -f deployment.yml
 kubectl apply -f hpa.yml
 ```
@@ -37,9 +36,9 @@ kubectl get nodes -o wide
 ## 4. Rationale for Configuration Choices
 Rationale for Resource Requests and Limits
 
-    Resource Requests (cpu: 100m, memory: 128Mi): This is the minimum amount of resources guaranteed to each pod. Django is a lightweight framework in an idle state, so 128Mi of RAM is more than enough for the WSGI/ASGI server to boot, and 100m (0.1 CPU core) ensures smooth container initialization without wasting cluster capacity.
+    Resource Requests (cpu: 250m, memory: 64Mi): This is the minimum amount of resources guaranteed to each pod. Django is a lightweight framework in an idle state, so 128Mi of RAM is more than enough for the WSGI/ASGI server to boot, and 100m (0.1 CPU core) ensures smooth container initialization without wasting cluster capacity.
 
-    Resource Limits (cpu: 300m, memory: 256Mi): Limits prevent a single pod from consuming all node resources in case of traffic spikes or unexpected memory leaks. Setting the CPU limit to 300m allows Django to handle short bursts of concurrent heavy requests or database queries, while the 256Mi memory ceiling keeps the application stable under normal load.
+    Resource Limits (cpu: 500m, memory: 128Mi): Limits prevent a single pod from consuming all node resources in case of traffic spikes or unexpected memory leaks. Setting the CPU limit to 300m allows Django to handle short bursts of concurrent heavy requests or database queries, while the 256Mi memory ceiling keeps the application stable under normal load.
 
 Rationale for HPA (Horizontal Pod Autoscaler) Configuration
 
