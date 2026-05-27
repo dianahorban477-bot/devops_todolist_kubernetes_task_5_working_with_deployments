@@ -36,22 +36,22 @@ kubectl get nodes -o wide
 ## 4. Rationale for Configuration Choices
 Rationale for Resource Requests and Limits
 
-    Resource Requests (cpu: 250m, memory: 64Mi): This is the minimum amount of resources guaranteed to each pod. Django is a lightweight framework in an idle state, so 128Mi of RAM is more than enough for the WSGI/ASGI server to boot, and 100m (0.1 CPU core) ensures smooth container initialization without wasting cluster capacity.
+    Resource Requests (cpu: 100m, memory: 128Mi): This defines the minimum resources guaranteed to each pod upon creation. Django in an idle or startup state is lightweight; 128Mi of RAM is fully sufficient for the WSGI/ASGI server process to initialize, and 100m (0.1 CPU core) ensures predictable pod scheduling across the cluster nodes without over-provisioning.
 
-    Resource Limits (cpu: 500m, memory: 128Mi): Limits prevent a single pod from consuming all node resources in case of traffic spikes or unexpected memory leaks. Setting the CPU limit to 300m allows Django to handle short bursts of concurrent heavy requests or database queries, while the 256Mi memory ceiling keeps the application stable under normal load.
+    Resource Limits (cpu: 300m, memory: 256Mi): Limits prevent a single container from consuming unlimited node resources in the event of unexpected traffic spikes or runtime memory growth. A CPU limit of 300m allows Django to handle temporary bursts of API requests or database operations smoothly, while the 256Mi memory ceiling keeps the pod contained and stable.
 
 Rationale for HPA (Horizontal Pod Autoscaler) Configuration
 
-    Min Pods: 2 / Max Pods: 5: * Having a minimum of 2 pods ensures High Availability (HA). If one pod crashes or restarts, the second one continues to serve traffic, preventing downtime.
+    Min Pods: 2 / Max Pods: 5: * Maintaining a minimum of 2 pods guarantees High Availability (HA) even when the application is idle. If one pod fails or undergoes a restart, the remaining pod continues to handle the incoming traffic.
 
-        The maximum of 5 pods sets a safe boundary so that even under an intense DDoS attack or extreme load, the cluster won't spin up infinitely and exhaust the underlying cloud infrastructure resources.
+        Setting a maximum of 5 pods establishes a safe structural limit, ensuring the cluster can scale up to absorb significant traffic loads without infinitely consuming underlying cloud infrastructure resources.
 
-    Triggers (CPU & Memory at 70%): Scaling is triggered by both metrics because different types of load affect different resources. Intense API request processing or cryptographic operations spike the CPU, while an increase in active user sessions or data caching increases memory usage. A 70% threshold leaves a 30% safety buffer for existing pods to handle traffic while new pods are being provisioned and passing their readiness probes.
+    Triggers (CPU & Memory at 70%): Dual-metric scaling provides comprehensive protection. CPU-intensive operations (such as serialization or requests processing) will trigger scaling via the CPU threshold, whereas sudden growth in concurrent active sessions or data caching will trigger scaling via memory usage. The 70% threshold leaves a safe 30% operational buffer while new pods are being provisioned and passing their readiness probes.
 
-Rationale for Deployment Strategy (Why Such Numbers)
+Rationale for Deployment Strategy Configuration
 
     Strategy Type: RollingUpdate
 
-    maxSurge: 1: This setting tells Kubernetes that during an update, it can create exactly 1 additional pod above the desired number (2). This ensures that we don't overload the cluster node with too many simultaneous container builds during deployment.
+    maxSurge: 1: Instructs Kubernetes to create at most 1 additional pod above the desired state (2) during a version update. This single-pod buffer ensures the node is never overloaded with too many simultaneous container creations during deployment.
 
-    maxUnavailable: 0: This is a crucial setting for zero-downtime updates. It guarantees that 0 pods can be unavailable during the update process. Kubernetes will not destroy any old pods until the newly created pods successfully pass their readinessProbe and are fully ready to take over the traffic. Thus, at least 2 healthy pods are always running.
+    maxUnavailable: 0: This parameter is critical for enforcing a strict zero-downtime deployment. It ensures that 0 pods can be taken offline during an update. Kubernetes will only terminate an old pod after a newly created pod successfully passes its readinessProbe and is verified as ready to receive traffic.
